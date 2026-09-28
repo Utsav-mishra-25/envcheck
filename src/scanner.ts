@@ -34,42 +34,42 @@ const quoted = (quotes: string) => `(?<q>[${quotes}])${NAME}\\k<q>`;
  */
 const PATTERNS: Readonly<Record<Language, readonly Pattern[]>> = {
   javascript: [
-    // process.env.X, process.env?.X
+    // process.env.<NAME>, process.env?.<NAME>
     { syntax: 'process.env', regex: new RegExp(`\\bprocess\\.env(?:\\?\\.|\\.)${NAME}\\b`, 'g') },
-    // process.env["X"], process.env['X'], process.env[`X`], process.env?.["X"]
+    // process.env["<NAME>"] with ', " or ` quotes, optionally process.env?.[...]
     {
       syntax: 'process.env',
       regex: new RegExp(`\\bprocess\\.env(?:\\?\\.)?\\[\\s*${quoted('\'"`')}\\s*\\]`, 'g'),
     },
-    // import.meta.env.X, import.meta.env?.X
+    // import.meta.env.<NAME>, import.meta.env?.<NAME>
     {
       syntax: 'import.meta.env',
       regex: new RegExp(`\\bimport\\.meta\\.env(?:\\?\\.|\\.)${NAME}\\b`, 'g'),
     },
-    // import.meta.env["X"]
+    // import.meta.env["<NAME>"]
     {
       syntax: 'import.meta.env',
       regex: new RegExp(`\\bimport\\.meta\\.env(?:\\?\\.)?\\[\\s*${quoted('\'"`')}\\s*\\]`, 'g'),
     },
   ],
   python: [
-    // os.environ["X"]
+    // os.environ["<NAME>"]
     { syntax: 'os.environ', regex: new RegExp(`\\bos\\.environ\\s*\\[\\s*${quoted('\'"')}\\s*\\]`, 'g') },
-    // os.environ.get("X"), os.environ.get("X", default)
+    // os.environ.get("<NAME>"), os.environ.get("<NAME>", default)
     { syntax: 'os.environ', regex: new RegExp(`\\bos\\.environ\\.get\\s*\\(\\s*${quoted('\'"')}`, 'g') },
-    // os.getenv("X"), os.getenv("X", default)
+    // os.getenv("<NAME>"), os.getenv("<NAME>", default)
     { syntax: 'os.getenv', regex: new RegExp(`\\bos\\.getenv\\s*\\(\\s*${quoted('\'"')}`, 'g') },
   ],
   go: [
-    // os.Getenv("X"), os.Getenv(`X`)
+    // os.Getenv("<NAME>"), os.Getenv(`<NAME>`)
     { syntax: 'os.Getenv', regex: new RegExp(`\\bos\\.Getenv\\s*\\(\\s*${quoted('"`')}\\s*\\)`, 'g') },
-    // os.LookupEnv("X")
+    // os.LookupEnv("<NAME>")
     { syntax: 'os.LookupEnv', regex: new RegExp(`\\bos\\.LookupEnv\\s*\\(\\s*${quoted('"`')}\\s*\\)`, 'g') },
   ],
   ruby: [
-    // ENV["X"], ENV['X']
+    // ENV["<NAME>"], ENV['<NAME>']
     { syntax: 'ENV', regex: new RegExp(`\\bENV\\s*\\[\\s*${quoted('\'"')}\\s*\\]`, 'g') },
-    // ENV.fetch("X"), ENV.fetch("X", default), ENV.fetch "X"
+    // ENV.fetch("<NAME>"), ENV.fetch("<NAME>", default), ENV.fetch "<NAME>"
     { syntax: 'ENV', regex: new RegExp(`\\bENV\\.fetch(?:\\s*\\(\\s*|\\s+)${quoted('\'"')}`, 'g') },
   ],
 };

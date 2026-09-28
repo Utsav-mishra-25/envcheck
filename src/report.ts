@@ -50,7 +50,10 @@ export function renderHuman(report: AuditReport, options: { color: boolean }): s
   if (report.missing.length === 0) out.push(none());
   for (const { name, references } of report.missing) {
     out.push(`  ${c.bold(name)}`);
-    for (const ref of references) out.push(`    ${c.cyan(`${ref.file}:${ref.line}`)}`);
+    // Several references on one line collapse to one entry; JSON keeps each with its column.
+    for (const [location, count] of countByLine(references)) {
+      out.push(`    ${c.cyan(location)}${count > 1 ? c.dim(` ×${count}`) : ''}`);
+    }
   }
   out.push('');
 
@@ -102,6 +105,15 @@ export function renderWarnings(report: AuditReport, options: { color: boolean })
   return report.warnings
     .map((w) => `${c.yellow('warning')} ${w.line ? `${w.file}:${w.line}` : w.file}: ${w.message}\n`)
     .join('');
+}
+
+function countByLine(references: ReadonlyArray<{ file: string; line: number }>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const { file, line } of references) {
+    const key = `${file}:${line}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
 }
 
 function plural(count: number, noun: string): string {
