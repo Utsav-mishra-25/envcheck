@@ -52,17 +52,17 @@ This is the real output of running `envcheck` in this repository:
 
 ```text
 $ envcheck
-envcheck · 30 files scanned · 37 references to 35 variables
+envcheck · 30 files scanned · 42 references to 39 variables
 env files: none found
 
-MISSING (35) referenced but not defined in any env file
+MISSING (39) referenced but not defined in any env file
   A
     tests/scanner.test.ts:55
   API_KEY
     tests/fixtures/project/src/server.ts:3
     tests/scanner.test.ts:26
   API_URL
-    tests/cli.test.ts:237
+    tests/cli.test.ts:264
   AWS_REGION
     tests/fixtures/project/src/server.ts:6
   B
@@ -76,11 +76,20 @@ MISSING (35) referenced but not defined in any env file
     tests/fixtures/project/cmd/api/main.go:12
   DOUBLE
     tests/scanner.test.ts:33
+  FROM_DIST
+    tests/cli.test.ts:18
+  FROM_GITIGNORED_DIR
+    tests/cli.test.ts:22
+  FROM_GITIGNORED_FILE
+    tests/cli.test.ts:23
+  FROM_GIT_DIR
+    tests/cli.test.ts:21
   FROM_JSX
     tests/scanner.test.ts:131
   FROM_MARKDOWN
     tests/scanner.test.ts:133
   FROM_NODE_MODULES
+    tests/cli.test.ts:17
     tests/scanner.test.ts:134
   FROM_TS
     tests/scanner.test.ts:130
@@ -135,14 +144,13 @@ UNUSED (0) defined in env files, never referenced
 MISMATCH (0) .env and .env.example disagree
   skipped: .env and .env.example not found
 
-✖ 35 findings (35 missing · 0 unused · 0 mismatch)
+✖ 39 findings (39 missing · 0 unused · 0 mismatch)
 ```
 
 This repository has no env files of its own, so every reference counts as MISSING and
-MISMATCH is skipped. The references come from the scanner's unit tests (string inputs such
-as `process.env["DOUBLE"]`) and from the fixture project in `tests/fixtures/project`, whose
-own `.env` files are not at the scan root. Note what is *not* listed: the fixture's
-decoys in `node_modules/`, `dist/`, `venv/` and gitignored paths.
+MISMATCH is skipped. The references come from test inputs (strings such as
+`process.env["DOUBLE"]` in `tests/*.test.ts`) and from the fixture project in
+`tests/fixtures/project`, whose own `.env` files are not at the scan root.
 
 Run inside that fixture with every flag, the report looks like this (tail shown):
 
@@ -231,10 +239,16 @@ Install), don't rely on `npx envcheck` resolving to this tool in CI.
    sorts everything so the output is deterministic.
 5. **Report.** The result is rendered as grouped colored text or JSON; the exit code follows `--strict`.
 
-The scanner is regex-based, so a reference inside a comment or a string is still reported,
-and aliased access (`const { X } = process.env`) is missed. See
-[docs/INSIGHTS.md](docs/INSIGHTS.md) for the full list of trade-offs, design notes and
-extension recipes.
+### Limitations
+
+- Matching is regex-based and line by line, so references inside comments and strings are
+  reported too, and a reference split across lines is missed.
+- Aliased or destructured access is not detected: `const { X } = process.env`,
+  `const env = process.env; env.X`, `from os import environ`.
+- Only `.env`, `.env.example` and `.env.local` at the scan root are read automatically; pass
+  other files (e.g. `.env.production`, `apps/web/.env`) with `--env`.
+- Variables supplied by the platform or shell (`HOME`, `PATH`, `CI`, …) have no env file;
+  skip them with `--ignore`.
 
 ## Development
 
@@ -245,5 +259,7 @@ npm test            # unit tests + integration tests against tests/fixtures/proj
 npm run build
 ```
 
-See [CLAUDE.md](CLAUDE.md) for the project layout and conventions, and
-[docs/INSIGHTS.md](docs/INSIGHTS.md) for architecture and debugging tips.
+Each step above is one module in `src/` (`walker.ts`, `scanner.ts`, `env-parser.ts` /
+`ci-parser.ts`, `analyze.ts`, `report.ts`), wired together by `audit.ts` and `cli.ts`. Unit
+tests (one file per module) live in `tests/`; `tests/cli.test.ts` runs the built binary against
+`tests/fixtures/project`, whose README lists the findings it is expected to produce.
