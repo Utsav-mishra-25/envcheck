@@ -1,0 +1,44 @@
+{
+  "name": "envcheck",
+  "version": "0.1.0",
+  "description": "Audit environment variable usage: find missing, unused, and mismatched env vars across your code and .env files.",
+  "type": "module",
+  "bin": {
+    "envcheck": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "env",
+    "dotenv",
+    "cli",
+    "lint",
+    "audit"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "vite": "^7.3.6"
+  }
+}
