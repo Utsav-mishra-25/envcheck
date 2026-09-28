@@ -23,7 +23,7 @@ export interface AnalyzeInput {
 
 export interface MissingFinding {
   name: string;
-  /** Every place the variable is referenced, sorted by file then position. */
+  /** Every unsatisfied reference to the variable, sorted by file then position. */
   references: Reference[];
 }
 
@@ -51,6 +51,7 @@ export interface Findings {
  * Pure core of envcheck: compare references against definitions.
  *
  * - MISSING: referenced, but defined neither in an env file nor (with --ci) a workflow env.
+ *   Workflow `secrets.X` references need an env-file definition (see isDefined).
  * - UNUSED: defined in an env file, never referenced.
  * - MISMATCH: in `.env` but not `.env.example`, or the reverse. Only computed when both exist.
  */
@@ -71,22 +72,24 @@ export function analyze(input: AnalyzeInput): Findings {
   }
   const ciDefined = new Set(input.ciDefinitions.map((d) => d.name));
 
-  const referencesByName = new Map<string, Reference[]>();
+  const referenced = new Set<string>();
+  const unsatisfied = new Map<string, Reference[]>();
   for (const ref of references) {
-    const list = referencesByName.get(ref.name) ?? [];
+    referenced.add(ref.name);
+    if (isDefined(ref, envDefinitions, ciDefined)) continue;
+    const list = unsatisfied.get(ref.name) ?? [];
     list.push(ref);
-    referencesByName.set(ref.name, list);
+    unsatisfied.set(ref.name, list);
   }
 
   const missing: MissingFinding[] = [];
-  for (const [name, refs] of referencesByName) {
-    if (envDefinitions.has(name) || ciDefined.has(name)) continue;
-    missing.push({ name, references: [...refs].sort(compareLocation) });
+  for (const [name, refs] of unsatisfied) {
+    missing.push({ name, references: refs.sort(compareLocation) });
   }
 
   const unused: UnusedFinding[] = [];
   for (const [name, definitions] of envDefinitions) {
-    if (!referencesByName.has(name)) unused.push({ name, definitions });
+    if (!referenced.has(name)) unused.push({ name, definitions });
   }
 
   return {
@@ -94,6 +97,16 @@ export function analyze(input: AnalyzeInput): Findings {
     unused: unused.sort(byName),
     mismatch: findMismatches(input.envFiles, isIgnored),
   };
+}
+
+/**
+ * Code references are satisfied by env files or workflow `env:` keys. A `secrets.X` reference
+ * is satisfied only by an env file: the point is that every secret CI needs is documented
+ * (typically in .env.example), and `KEY: ${{ secrets.KEY }}` must not vouch for itself.
+ */
+function isDefined(ref: Reference, envDefinitions: ReadonlyMap<string, unknown>, ciDefined: ReadonlySet<string>): boolean {
+  if (envDefinitions.has(ref.name)) return true;
+  return ref.syntax !== 'secrets' && ciDefined.has(ref.name);
 }
 
 function findMismatches(envFiles: LoadedEnvFile[], isIgnored: (name: string) => boolean): MismatchFinding[] {

@@ -98,6 +98,20 @@ describe('analyze', () => {
     expect(unused.map((u) => u.name)).toEqual(['USED_BY_CI_ONLY']);
   });
 
+  it('requires secret references to be documented in an env file, even when CI env defines the name', () => {
+    const secret: Reference = { ...ref('SERVICE_TOKEN', '.github/workflows/ci.yml', 9), syntax: 'secrets' };
+    const code = ref('SERVICE_TOKEN', 'main.go', 4);
+    const { missing } = run({ references: [secret, code], ciDefinitions: [ciDef('SERVICE_TOKEN')] });
+    expect(missing).toEqual([{ name: 'SERVICE_TOKEN', references: [secret] }]);
+
+    const documented = run({
+      references: [secret, code],
+      ciDefinitions: [ciDef('SERVICE_TOKEN')],
+      envFiles: [envFile('.env.example', ['SERVICE_TOKEN'])],
+    });
+    expect(documented.missing).toEqual([]);
+  });
+
   it('reports mismatches in both directions between .env and .env.example', () => {
     const { mismatch } = run({
       envFiles: [
