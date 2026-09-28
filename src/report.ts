@@ -46,7 +46,7 @@ export function renderHuman(report: AuditReport, options: { color: boolean }): s
   );
 
   // MISSING: one block per variable, one line per reference.
-  out.push(header(c.red, 'MISSING', report.missing.length, 'referenced in code, not defined in any env file'));
+  out.push(header(c.red, 'MISSING', report.missing.length, 'referenced but not defined in any env file'));
   if (report.missing.length === 0) out.push(none());
   for (const { name, references } of report.missing) {
     out.push(`  ${c.bold(name)}`);
