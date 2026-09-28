@@ -1,5 +1,5 @@
-# Anchored to the repo root on purpose: tests/fixtures/project contains its own
-# node_modules/, dist/, venv/ and .env files that must be committed.
+# Anchored to the repo root on purpose: tests/fixtures/project contains .env files
+# that must be committed.
 /node_modules/
 /dist/
 /coverage/
@@ -7,3 +7,7 @@
 /.env.local
 *.log
 .DS_Store
+
+# Personal, local-only docs (kept out of the public repo).
+/CLAUDE.md
+/docs/INSIGHTS.md
