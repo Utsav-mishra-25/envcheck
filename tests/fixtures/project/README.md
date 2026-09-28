@@ -21,16 +21,18 @@ must never be reported.
 
 ## Decoys that must never be scanned
 
-| Path | Why |
+`tests/cli.test.ts` runs against a temp copy of this directory and first writes decoy files
+into it (see `DECOYS` there), so none of them are committed:
+
+| Path | Why it must be skipped |
 | --- | --- |
-| `node_modules/`, `dist/`, `venv/` | always skipped |
-| `generated/` | fixture `.gitignore` (`generated/`) |
-| `src/drop.local.ts` | fixture `.gitignore` (`*.local.ts`) |
-| `README.md` | unsupported extension |
+| `node_modules/`, `dist/`, `venv/`, `.venv/`, `.git/` | always skipped |
+| `generated/client.ts` | this fixture's `.gitignore` (`generated/`) |
+| `src/drop.local.ts` | this fixture's `.gitignore` (`*.local.ts`) |
+| `README.md` (this file) | unsupported extension |
 
 `src/keep.local.ts` matches `*.local.ts` but is re-included by `!keep.local.ts`, so its
-`KEPT_BY_NEGATION` reference **is** reported. `generated/` and `src/drop.local.ts` are
-ignored by this fixture's own `.gitignore`, so they are committed with `git add -f`.
+`KEPT_BY_NEGATION` reference **is** reported.
 
 ## Expected results
 

@@ -1,11 +1,43 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, inject, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 
-const FIXTURE = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
+const FIXTURE_SOURCE = fileURLToPath(new URL('./fixtures/project/', import.meta.url));
+
+/**
+ * Files envcheck must never scan. They are written into a temp copy of the fixture at run
+ * time rather than committed: skip dirs and gitignored paths would need `git add -f`, and a
+ * `.git` directory cannot be committed at all. The fixture's own .gitignore (`generated/`,
+ * `*.local.ts`, `!keep.local.ts`) is what excludes the last two.
+ */
+const DECOYS: Readonly<Record<string, string>> = {
+  'node_modules/fake-lib/index.js': 'module.exports = process.env.FROM_NODE_MODULES;\n',
+  'dist/bundle.js': 'console.log(process.env.FROM_DIST);\n',
+  'venv/lib/site.py': 'import os\nos.getenv("FROM_VENV")\n',
+  '.venv/lib/site.py': 'import os\nos.getenv("FROM_DOT_VENV")\n',
+  '.git/hooks/pre-commit.js': 'console.log(process.env.FROM_GIT_DIR);\n',
+  'generated/client.ts': 'export const generated = process.env.FROM_GITIGNORED_DIR;\n',
+  'src/drop.local.ts': 'export const dropped = process.env.FROM_GITIGNORED_FILE;\n',
+};
+
+/** Temp copy of tests/fixtures/project plus DECOYS; every fixture test runs here. */
+let fixtureDir: string;
+
+beforeAll(async () => {
+  fixtureDir = await mkdtemp(join(tmpdir(), 'envcheck-fixture-'));
+  await cp(FIXTURE_SOURCE, fixtureDir, { recursive: true });
+  for (const [rel, content] of Object.entries(DECOYS)) {
+    await mkdir(dirname(join(fixtureDir, rel)), { recursive: true });
+    await writeFile(join(fixtureDir, rel), content);
+  }
+});
+
+afterAll(async () => {
+  await rm(fixtureDir, { recursive: true, force: true });
+});
 
 interface CliResult {
   code: number | null;
@@ -14,7 +46,7 @@ interface CliResult {
 }
 
 /** Run the built CLI as a child process, exactly as `npx envcheck` would. */
-function envcheck(args: string[], cwd = FIXTURE): CliResult {
+function envcheck(args: string[], cwd = fixtureDir): CliResult {
   const env: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: '1' };
   delete env.FORCE_COLOR;
   const result = spawnSync(process.execPath, [inject('cliPath'), ...args], { cwd, env, encoding: 'utf8' });
@@ -107,15 +139,10 @@ describe('envcheck against the fixture project', () => {
 
   it('never scans decoys: skip dirs, gitignored paths, unsupported files, dynamic keys', () => {
     const { stdout } = envcheck(['--json']);
-    for (const decoy of [
-      'FROM_NODE_MODULES',
-      'FROM_DIST',
-      'FROM_VENV',
-      'FROM_GITIGNORED_DIR',
-      'FROM_GITIGNORED_FILE',
-      'FROM_MARKDOWN',
-      'NOT_DETECTED',
-    ]) {
+    const decoyNames = Object.values(DECOYS).map((content) => /FROM_[A-Z_]+/.exec(content)?.[0]);
+    expect(decoyNames).not.toContain(undefined);
+    // FROM_MARKDOWN lives in the fixture's README.md; NOT_DETECTED is a dynamic key in legacy.js.
+    for (const decoy of [...decoyNames, 'FROM_MARKDOWN', 'NOT_DETECTED']) {
       expect(stdout).not.toContain(decoy);
     }
   });
