@@ -1,0 +1,4 @@
+# Fixture-local rules: envcheck must honor these while walking the fixture.
+generated/
+*.local.ts
+!keep.local.ts

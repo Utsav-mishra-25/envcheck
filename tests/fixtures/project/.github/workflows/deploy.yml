@@ -1,0 +1,24 @@
+name: Deploy
+on: push
+
+env:
+  DEPLOY_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      GO_SERVICE_TOKEN: ${{ secrets.SERVICE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        if: secrets.DEPLOY_KEY != ''
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "deploying with ${{ secrets.DEPLOY_KEY }}"
+          # env:
+          #   NOT_A_DEFINITION: 1
+      - name: Notify
+        run: curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}"
